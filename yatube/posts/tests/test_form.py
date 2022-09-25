@@ -29,7 +29,7 @@ class PostCreateFormTests(TestCase):
         self.user = User.objects.create_user(username='noname')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
-    
+
     # гость не может создавать пост
     def test_guest_create_post(self):
         form_data = {
@@ -43,7 +43,7 @@ class PostCreateFormTests(TestCase):
         )
         self.assertFalse(Post.objects.filter(
             text='Текст из формы').exists())
-    
+
     # Создание нового поста
     def test_authorized_create_post(self):
         count_posts = Post.objects.count()
