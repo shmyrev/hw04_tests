@@ -18,10 +18,6 @@ class PostCreateFormTests(TestCase):
             slug='test_slug',
             description='Тестовое описание',
         )
-        cls.post = Post.objects.create(
-            author=cls.user,
-            text='Тестовый пост',
-        )
 
     def setUp(self):
         self.guest_client = Client()
@@ -46,7 +42,7 @@ class PostCreateFormTests(TestCase):
 
     # Создание нового поста
     def test_authorized_create_post(self):
-        count_posts = Post.objects.count()
+        posts_count = Post.objects.count()
         form_data = {
             'text': 'Текст из формы',
             'group': self.group.id,
@@ -56,41 +52,54 @@ class PostCreateFormTests(TestCase):
             data=form_data,
             follow=True,
         )
-        post = Post.objects.get(id=self.group.id)
-        author = User.objects.get(username='noname')
-        group = Group.objects.get(title='Тестовая группа')
-        self.assertEqual(Post.objects.count(), count_posts + 1)
+        # Проверяем, сработал ли редирект
         self.assertRedirects(
             response, reverse('posts:profile', kwargs={'username': 'noname'})
         )
-        self.assertEqual(post.text, 'Тестовый пост')
-        self.assertEqual(author.username, 'noname')
-        self.assertEqual(group.title, 'Тестовая группа')
+        # Проверяем, увеличилось ли число постов
+        self.assertEqual(Post.objects.count(), posts_count + 1)
+        # Проверяем, запись на совподение полей
+        self.assertTrue(
+            Post.objects.filter(
+                text='Текст из формы',
+                author=self.user,
+                group=self.group.id,
+            ).exists()
+        )
+        # Проверяем, последняя ли зпись
+        self.assertTrue(
+            Post.objects.filter(
+                text='Текст из формы',
+                author=self.user,
+                group=self.group.id,
+            ).last()
+        )
 
     # редактирование поста
     def test_authorized_edit_post(self):
+        # до редактирования
         form_data = {
             'text': 'Текст из формы',
-            'group': self.group.id
+            'group': self.group.id,
         }
-        self.authorized_client.post(
-            reverse('posts:index'),
+        response = self.authorized_client.post(
+            reverse('posts:post_create'),
             data=form_data,
-            follow=True,
+            follow=True
         )
-        post = Post.objects.get(pk=self.group.id)
-        self.client.get(f'posts/{self.post.id}/edit/')
+        self.assertEqual(response.status_code, 200)
+        # после редоктирования
+        post_edit = Post.objects.get(id=self.group.id)
         form_data = {
-            'text': 'Текст из формы',
-            'group': self.post.id
+            'text': 'Измененный текст формы',
+            'group': post_edit.id,
         }
         response_edit = self.authorized_client.post(
-            reverse('posts:post_edit',
-                    kwargs={
-                        'post_id': self.post.id,
-                    }),
+            reverse('posts:post_edit', kwargs={'post_id': post_edit.id}),
             data=form_data,
             follow=True,
         )
+        post_edit = Post.objects.get(pk=self.group.id)
         self.assertEqual(response_edit.status_code, 200)
-        self.assertEqual(post.text, 'Тестовый пост')
+        # проверяем, внеслись ли изменения
+        self.assertEqual(post_edit.text, 'Измененный текст формы')

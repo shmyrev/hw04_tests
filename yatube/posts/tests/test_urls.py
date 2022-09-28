@@ -1,9 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
+from http import HTTPStatus
 
 from ..models import Group, Post
 
 User = get_user_model()
+OK = HTTPStatus.OK
 
 
 class StaticUrlTests(TestCase):
@@ -34,10 +36,10 @@ class StaticUrlTests(TestCase):
     def test_url_exists_at_desired_location(self):
         """Страница доступна любому пользователю."""
         url_exists = {
-            '/': 200,
-            '/group/test-slug/': 200,
-            '/profile/auth/': 200,
-            f'/posts/{ self.post.id }/': 200,
+            '/': OK,
+            '/group/test-slug/': OK,
+            '/profile/auth/': OK,
+            f'/posts/{ self.post.id }/': OK,
         }
         for url, status_code in url_exists.items():
             with self.subTest(url=url):
@@ -48,8 +50,8 @@ class StaticUrlTests(TestCase):
     def test_url_exists_at_desired_authorized(self):
         """Страница доступна авторизованному пользователю."""
         url_exists = {
-            '/create/': 200,
-            f'/posts/{ self.post.id }/edit/': 302,
+            '/create/': OK,
+            f'/posts/{ self.post.id }/edit/': HTTPStatus.FOUND,
         }
         for url, status_code in url_exists.items():
             with self.subTest(url=url):
@@ -70,11 +72,3 @@ class StaticUrlTests(TestCase):
             with self.subTest(address=address):
                 response = self.authorized_client.get(address)
                 self.assertTemplateUsed(response, template)
-
-    # Проверяем редиректы для неавторизованного пользователя
-    # def test_url_redirect_anonymous_on_admin_login(self):
-    #     """Страница перенаправит анонимного
-    #           пользователя на страницу логина."""
-    #     response = self.guest_client.get(
-    #         f'/posts/{ self.post.id }/edit/', follow=True)
-    #     self.assertRedirects(response, '/admin/login/?next=/post_detail/')
