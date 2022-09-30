@@ -27,7 +27,7 @@ class PostModelTest(TestCase):
         group = PostModelTest.group
         field_str = {
             post.text[:15]: str(post),
-            group.title[:15]: str(group),
+            group.title: str(group),
         }
         for field, expected_value in field_str.items():
             with self.subTest(field=field):

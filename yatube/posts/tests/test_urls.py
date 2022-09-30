@@ -40,6 +40,7 @@ class StaticUrlTests(TestCase):
             '/group/test-slug/': OK,
             '/profile/auth/': OK,
             f'/posts/{ self.post.id }/': OK,
+            '/page_not_found/': HTTPStatus.NOT_FOUND,
         }
         for url, status_code in url_exists.items():
             with self.subTest(url=url):
