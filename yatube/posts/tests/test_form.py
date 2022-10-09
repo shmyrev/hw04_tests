@@ -54,8 +54,10 @@ class PostCreateFormTests(TestCase):
             ).exists()
         )
         # Проверяем, последняя ли зпись
-        self.assertEqual(Post.objects.all().first(),
-                         Post.objects.get(text=form_data['text']))
+        self.assertTrue(
+            Post.objects.filter(pub_date__isnull=False,
+                                text=form_data['text']).latest('pub_date')
+        )
 
     def test_authorized_edit_post(self):
         """редактирование поста"""
