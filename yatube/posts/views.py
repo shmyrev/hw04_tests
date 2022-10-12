@@ -23,11 +23,7 @@ def index(request):
     template = 'posts/index.html'
     posts = Post.objects.all()
     page_obj = paginator_view(request, posts, POST_NUMBERS)
-    context = {
-        'posts': posts,
-        'page_obj': page_obj,
-    }
-    return render(request, template, context)
+    return render(request, template, {'page_obj': page_obj})
 
 
 def group_posts(request, group_slug):
@@ -37,7 +33,6 @@ def group_posts(request, group_slug):
     page_obj = paginator_view(request, posts, POST_NUMBERS)
     context = {
         'group': group,
-        'posts': posts,
         'page_obj': page_obj,
     }
     return render(request, template, context)
@@ -49,7 +44,6 @@ def profile(request, username):
     page_obj = paginator_view(request, posts, POST_NUMBERS)
     context = {
         'author': author,
-        'posts': posts,
         'page_obj': page_obj,
     }
     return render(request, 'posts/profile.html', context)
@@ -65,7 +59,10 @@ def post_detail(request, post_id):
 
 @login_required()
 def post_create(request):
-    form = PostForm(request.POST or None)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+    )
     if request.method == "POST":
         if form.is_valid():
             post = form.save(commit=False)
@@ -82,7 +79,11 @@ def post_edit(request, post_id):
     if request.user != post.author:
         return redirect('posts:post_detail', post_id)
 
-    form = PostForm(request.POST or None, instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post
+    )
     if request.method == 'POST':
         if form.is_valid():
             form.save()
@@ -90,7 +91,6 @@ def post_edit(request, post_id):
 
     context = {
         'form': form,
-        'post': post,
         'is_edit': True,
     }
     return render(request, 'posts/create_post.html', context)

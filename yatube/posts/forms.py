@@ -1,15 +1,19 @@
-from django.contrib.auth import get_user_model
-from django.forms import ModelForm
+from django import forms
 
 from .models import Post
 
 
-User = get_user_model()
-
-
-class PostForm(ModelForm):
+class PostForm(forms.ModelForm):
     class Meta:
         model = Post
-        fields = ('text', 'group')
-        labels = {'text': 'Текст', 'group': 'Группа'}
-        help_texts = {'text': 'Новый текст', 'group': 'Выбрать группу'}
+        fields = ['text', 'group', 'image']
+        labels = {
+            'text': 'Текст поста',
+            'group': 'Группа',
+            'image': 'Картинка'
+        }
+        help_texts = {
+            'text': 'Новый текст',
+            'group': 'Выбрать группу',
+            'image': 'Добавить картинку'
+        }

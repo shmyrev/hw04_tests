@@ -1,12 +1,23 @@
+import shutil
+import tempfile
+
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from ..models import Post, Group
 
 User = get_user_model()
 
+# Создаем временную папку для медиа-файлов;
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
+
+# Для сохранения media-файлов в тестах будет использоваться
+# временная папка TEMP_MEDIA_ROOT, а потом мы ее удалим
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -18,18 +29,43 @@ class PostPagesTests(TestCase):
             slug='test_slug',
             description='Тестовое описание',
         )
+        cls.image_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        cls.uploaded = SimpleUploadedFile(
+            name='image.gif',
+            content=cls.image_gif,
+            content_type='image/gif'
+        )
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый пост',
+            image=cls.uploaded,
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        # Модуль shutil - библиотека Python с удобными инструментами
+        # для управления файлами и директориями:
+        # создание, удаление, копирование, перемещение,
+        # изменение папок и файлов
+        # Метод shutil.rmtree удаляет директорию и всё её содержимое
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         # Создаем авторизованный клиент
-        self.user = User.objects.create_user(username='Stas')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
+    # Проверяем используемые шаблоны
     def test_view_pages_correct_template(self):
+        """URL-адрес использует соответствующий шаблон."""
         templates_pages_names = {
             'posts/index.html': reverse('posts:index'),
             'posts/group_list.html': (
@@ -43,7 +79,6 @@ class PostPagesTests(TestCase):
                         kwargs={'post_id': f'{self.post.id}'})
             ),
             'posts/create_post.html': reverse('posts:post_create'),
-
         }
         # Проверяем, что при обращении к name вызывается HTML-шаблон
         for template, reverse_name in templates_pages_names.items():
@@ -58,9 +93,11 @@ class PostPagesTests(TestCase):
         first_object = response.context['page_obj'][0]
         post_text_0 = first_object.text
         post_author_0 = first_object.author.username
+        post_image_0 = Post.objects.first().image
 
         self.assertEqual(post_text_0, 'Тестовый пост')
         self.assertEqual(post_author_0, 'auth')
+        self.assertEqual(post_image_0, 'posts/image.gif')
 
     def test_group_page_show_correct_context(self):
         """Шаблон group сформирован с правильным контекстом."""
@@ -71,10 +108,38 @@ class PostPagesTests(TestCase):
         group_title_0 = first_object.title
         group_slug_0 = first_object.slug
         group_description_0 = first_object.description
+        post_image_0 = Post.objects.first().image
 
         self.assertEqual(group_title_0, 'Тестовая группа')
         self.assertEqual(group_slug_0, 'test_slug')
         self.assertEqual(group_description_0, 'Тестовое описание')
+        self.assertEqual(post_image_0, 'posts/image.gif')
+
+    def test_profile_show_correct_context(self):
+        """Шаблон profile сформирован с правильным контекстом"""
+        response = self.authorized_client.get(
+            reverse('posts:profile', kwargs={'username': 'auth'})
+        )
+        first_object = response.context['page_obj'][0]
+        post_text_0 = first_object.text
+        post_image_0 = Post.objects.first().image
+
+        self.assertEqual(response.context['author'].username, 'auth')
+        self.assertEqual(post_text_0, 'Тестовый пост')
+        self.assertEqual(post_image_0, 'posts/image.gif')
+
+    def test_post_detail_show_correct_context(self):
+        """Шаблон post_detail сформирован с правильным контекстом"""
+        response = self.authorized_client.get(
+            reverse('posts:post_detail', kwargs={'post_id': f'{self.post.id}'})
+        )
+        first_object = response.context['post']
+        post_text_0 = first_object.text
+        post_image_0 = Post.objects.first().image
+
+        self.assertEqual(first_object, self.post)
+        self.assertEqual(post_text_0, 'Тестовый пост')
+        self.assertEqual(post_image_0, 'posts/image.gif')
 
 
 # Тестирование паджинатора
